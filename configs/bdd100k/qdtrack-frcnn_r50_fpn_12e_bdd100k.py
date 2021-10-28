@@ -109,7 +109,13 @@ log_config = dict(
     interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
+        dict(
+            type='WandbLoggerHook',
+            init_kwargs=dict(
+                project="bdd100k_track",
+                name="run-00"
+            )
+        )
     ])
 # yapf:enable
 # runtime settings
