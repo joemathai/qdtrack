@@ -3,6 +3,7 @@ import copy
 import os
 import os.path as osp
 import time
+import pathlib
 
 import mmcv
 import torch
@@ -19,6 +20,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a model')
     parser.add_argument('config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
+    parser.add_argument('--data-root', help='dataset root to override in the cfg', default=None)
     parser.add_argument(
         '--resume-from', help='the checkpoint file to resume from')
     parser.add_argument(
@@ -64,7 +66,20 @@ def parse_args():
 def main():
     args = parse_args()
 
-    cfg = Config.fromfile(args.config)
+    # note: this is a hack to change the config data_root to local ssd for slurm jobs
+    if args.data_root is not None and os.getenv('TMPDIR', None) is not None:
+        tmp_config = f"{os.getenv('TMPDIR')}/tmp_config.py"
+        tmp_lines = list()
+        with open(args.config, 'r') as fh:
+            for idx, line in enumerate(fh.readlines()):
+                if 'data_root = ' in line:
+                    line = f"data_root = '{args.data_root}'"
+                tmp_lines.append(line)
+        with open(tmp_config, 'w') as fh:
+            for line in tmp_lines:
+                fh.write(f"{line.strip()}\n")
+
+    cfg = Config.fromfile(tmp_config)
 
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
@@ -77,7 +92,7 @@ def main():
         from qdtrack.models import build_model
 
     # set cudnn_benchmark
-    if cfg.get('cudnn_benchmark', False):
+    if cfg.get('cudnn_benchmark', True):
         torch.backends.cudnn.benchmark = True
 
     # work_dir is determined in this priority: CLI > segment in file > filename
@@ -90,6 +105,12 @@ def main():
                                 osp.splitext(osp.basename(args.config))[0])
     if args.resume_from is not None:
         cfg.resume_from = args.resume_from
+    elif (pathlib.Path(cfg.work_dir)/'latest.pth').is_file():
+        cfg.resume_from = f"{cfg.work_dir}/latest.pth"
+        print("loading previous state from ", cfg.resume_from)
+    else:
+        print("not loading previous model")
+            
     if args.gpu_ids is not None:
         cfg.gpu_ids = args.gpu_ids
     else:
