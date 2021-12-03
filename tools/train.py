@@ -78,6 +78,7 @@ def main():
         with open(tmp_config, 'w') as fh:
             for line in tmp_lines:
                 fh.write(f"{line.strip()}\n")
+        time.sleep(2)
 
     cfg = Config.fromfile(tmp_config)
 
@@ -121,7 +122,7 @@ def main():
         distributed = False
     else:
         distributed = True
-        init_dist(args.launcher, **cfg.dist_params)
+        init_dist(args.launcher, **cfg.get('dist_params', dict(backend='nccl')))
 
     # create work_dir
     mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))

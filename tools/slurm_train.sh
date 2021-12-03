@@ -10,7 +10,7 @@
 #SBATCH --mem-per-gpu=20G
 
 CONFIG=$1
-GPUS=4
+GPUS=$2
 PORT=${PORT:-29500}
 TMP_CONFIG=$TMPDIR"/tmp_config.py"
 
@@ -27,7 +27,7 @@ conda activate qdtrack
 
 PYTHONPATH="$(dirname $0)/..":$PYTHONPATH \
 python -m torch.distributed.launch --nproc_per_node=$GPUS --master_port=$PORT \
-    $(dirname "$0")/train.py $CONFIG --launcher pytorch ${@:3} --data-root $TMPDIR/data/bdd
+    $(dirname "$0")/train.py $CONFIG --launcher pytorch ${@:3} --data-root $TMPDIR/data/bdd 
 
 
 

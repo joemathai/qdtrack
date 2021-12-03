@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 
 import mmcv
 import torch
@@ -16,6 +17,7 @@ def parse_args():
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--out', help='output result file')
+    parser.add_argument('--data-root', help='data path')
     parser.add_argument(
         '--fuse-conv-bn',
         action='store_true',
@@ -80,7 +82,21 @@ def main():
     if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
 
-    cfg = Config.fromfile(args.config)
+    # note: this is a hack to change the config data_root to local ssd for slurm jobs
+    if args.data_root is not None and os.getenv('TMPDIR', None) is not None:
+        tmp_config = f"{os.getenv('TMPDIR')}/tmp_config.py"
+        tmp_lines = list()
+        with open(args.config, 'r') as fh:
+            for idx, line in enumerate(fh.readlines()):
+                if 'data_root = ' in line:
+                    line = f"data_root = '{args.data_root}'"
+                tmp_lines.append(line)
+        with open(tmp_config, 'w') as fh:
+            for line in tmp_lines:
+                fh.write(f"{line.strip()}\n")
+        time.sleep(2)
+
+    cfg = Config.fromfile(tmp_config)
 
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
