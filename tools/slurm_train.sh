@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=71:59:59
+#SBATCH --time=5-00:00:00
 #SBATCH --account=gard
 #SBATCH --qos=premium_memory
 #SBATCH --cpus-per-task=10
