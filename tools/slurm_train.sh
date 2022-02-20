@@ -23,7 +23,7 @@ cp /nas/vista-ssd02/users/jmathai/bdd100k_qdtrack_data.tar $TMPDIR
 tar -xf $TMPDIR/bdd100k_qdtrack_data.tar --directory $TMPDIR
 
 eval "$(command conda 'shell.bash' 'hook' 2> /dev/null)"
-conda activate qdtrack
+conda activate qdtrack2
 
 PYTHONPATH="$(dirname $0)/..":$PYTHONPATH \
 python -m torch.distributed.launch --nproc_per_node=$GPUS --master_port=$PORT \

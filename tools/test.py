@@ -84,6 +84,7 @@ def main():
 
     # note: this is a hack to change the config data_root to local ssd for slurm jobs
     if args.data_root is not None and os.getenv('TMPDIR', None) is not None:
+        print(f"hack to change the config data root to {args.data_root}")
         tmp_config = f"{os.getenv('TMPDIR')}/tmp_config.py"
         tmp_lines = list()
         with open(args.config, 'r') as fh:

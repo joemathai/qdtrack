@@ -25,17 +25,28 @@ class customConv2(nn.Module):
 
     def forward(self, img):
         b, c, h, w = img.shape[0], img.shape[1], img.shape[2], img.shape[3]
-        p00 = 0.1694
-        p01 = 0.422378
-        p10 = 0.25498
-        p11 = 0.072789
-        p20 = -0.17645
-        p21 = -0.043589
-        p30 = -0.09217
+        # p00 = 0.1694
+        # p01 = 0.422378
+        # p10 = 0.25498
+        # p11 = 0.072789
+        # p20 = -0.17645
+        # p21 = -0.043589
+        # p30 = -0.09217
+        p00 = 0.0
+        p01 = -0.000287
+        p10 = 0.0
+        p11 = 0.266
+        p20 = 0.0
+        p21 = -0.1097
+        p30 = 0.0
         img_unf = nn.functional.unfold(img, kernel_size=self.kernel_size,
                                        stride=self.stride, padding=self.padding).transpose(1, 2)
         identity_weights = self.identity_kernel.view(self.identity_kernel.size(0), -1)
         weights = self.weights.view(self.weights.size(0), -1)
+
+        if torch.any(torch.isnan(self.weights)):
+            print("Got NaN in the CustomConv weights")
+            exit(0)
 
         # f0 = (p00 + torch.zeros_like(img_unf)).matmul(identity_weights.t())
         # f1 = (p10 * (img_unf - 0.5)).matmul(identity_weights.t())
@@ -479,6 +490,8 @@ class ModResNetV2(BaseModule):
             raise TypeError('pretrained must be a str or None')
 
         self.depth = depth
+        self.stem_kernel = stem_kernel
+        self.stem_stride = stem_stride
         if stem_channels is None:
             stem_channels = base_channels
         self.stem_channels = stem_channels
@@ -507,7 +520,7 @@ class ModResNetV2(BaseModule):
         self.stage_blocks = stage_blocks[:num_stages]
         self.inplanes = stem_channels
 
-        # self._make_stem_layer(in_channels, stem_channels)
+        self._make_stem_layer(in_channels, stem_channels)
 
         self.res_layers = []
         for i, num_blocks in enumerate(self.stage_blocks):
@@ -540,12 +553,8 @@ class ModResNetV2(BaseModule):
             self.res_layers.append(layer_name)
 
         self._freeze_stages()
-
         self.feat_dim = self.block.expansion * base_channels * 2**(
             len(self.stage_blocks) - 1)
-
-        self.custom_conv = customConv2(in_channels=3, out_channels=stem_channels,
-                                       kernel_size=stem_kernel, stride=stem_stride, padding=0)
 
     def make_stage_plugins(self, plugins, stage_idx):
         """Make plugins for ResNet ``stage_idx`` th stage.
@@ -652,17 +661,9 @@ class ModResNetV2(BaseModule):
                 build_norm_layer(self.norm_cfg, stem_channels)[1],
                 nn.ReLU(inplace=True))
         else:
-            '''
-            self.conv1 = build_conv_layer(
-                self.conv_cfg,
-                in_channels,
-                stem_channels,
-                kernel_size=7,
-                stride=6,
-                padding=1,
-                bias=False)
-            '''
-            
+            self.custom_conv = customConv2(in_channels=3, out_channels=stem_channels,
+                                           kernel_size=self.stem_kernel,
+                                           stride=self.stem_stride, padding=3)
             self.norm1_name, norm1 = build_norm_layer(
                 self.norm_cfg, stem_channels, postfix=1)
             self.add_module(self.norm1_name, norm1)
@@ -688,9 +689,8 @@ class ModResNetV2(BaseModule):
             x = self.stem(x)
         else:
             x = self.custom_conv(x)
-            # x = self.quantize(x, 1)
-            # x = self.norm1(x)
-            # x = self.relu(x)
+            x = self.norm1(x)
+            x = self.relu(x)
         
         m = nn.AdaptiveAvgPool2d((height_image//4, width_image//4))
         x = m(x).contiguous()

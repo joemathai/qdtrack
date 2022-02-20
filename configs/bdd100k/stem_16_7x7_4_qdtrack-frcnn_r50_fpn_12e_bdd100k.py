@@ -8,7 +8,7 @@ model = dict(
         num_stages=4,
         stem_channels=16,
         stem_kernel=(7, 7),
-        stem_stride=2,
+        stem_stride=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=-1,
         norm_cfg=dict(type='BN', requires_grad=True),
@@ -322,7 +322,7 @@ log_config = dict(
         dict(type='TextLoggerHook'),
         dict(
             type='WandbLoggerHook',
-            init_kwargs=dict(project='bdd100k_track', name='stem_16_7x7_2')
+            init_kwargs=dict(project='bdd100k_track', name='stem_16_7x7_4')
         )
     ]
 )
@@ -333,5 +333,5 @@ load_from = None
 resume_from = None
 workflow = [('train', 1)]
 evaluation = dict(metric=['bbox', 'track'], interval=5)
-work_dir = '../work_dirs/stem_16_7x7_2_qdtrack-frcnn_r50_fpn_12e_bdd100k'
+work_dir = '../work_dirs/stem_16_7x7_4_qdtrack-frcnn_r50_fpn_12e_bdd100k'
 gpu_ids = range(0, 1)
