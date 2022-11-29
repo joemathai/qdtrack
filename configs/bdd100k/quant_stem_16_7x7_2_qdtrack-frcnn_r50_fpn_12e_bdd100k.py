@@ -1,4 +1,4 @@
-data_root = '/lfs_ssd/slurm_tmp/jmathai/69596/data/bdd'
+data_root = '/nas/vista-ssd02/users/jmathai/data/bdd'
 dataset_type = 'BDDVideoDataset'
 model = dict(
     type='QDTrack',
@@ -14,7 +14,12 @@ model = dict(
         norm_cfg=dict(type='BN', requires_grad=True),
         norm_eval=False,
         style='pytorch',
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
+        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50'),
+        pkl_dir="/nas/home/jmathai/rpixel/qdtrack/tools/demo_pkls",
+        pkl_save_conv1=False,
+        pkl_load_conv1=False,
+        pkl_save_bb=False,
+        pkl_load_bb=False),
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],

@@ -1,4 +1,6 @@
 import warnings
+import pathlib
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as cp
@@ -521,7 +523,13 @@ class ModResNetV2Quant(BaseModule):
                  with_cp=False,
                  zero_init_residual=True,
                  pretrained=None,
-                 init_cfg=None):
+                 init_cfg=None,
+                 pkl_dir=None,
+                 pkl_save_conv1=False,
+                 pkl_load_conv1=False,
+                 pkl_save_bb=False,
+                 pkl_load_bb=False
+                 ):
         super(ModResNetV2Quant, self).__init__(init_cfg)
         self.zero_init_residual = zero_init_residual
         if depth not in self.arch_settings:
@@ -624,6 +632,16 @@ class ModResNetV2Quant(BaseModule):
         self._freeze_stages()
         self.feat_dim = self.block.expansion * base_channels * 2**(
             len(self.stage_blocks) - 1)
+
+        # for demo purpose only
+        self.pkl_frame_counter = 0
+        self.pkl_dir=pkl_dir
+        self.pkl_save_conv1=pkl_save_conv1
+        self.pkl_load_conv1=pkl_load_conv1
+        self.pkl_save_bb=pkl_save_bb
+        self.pkl_load_bb=pkl_load_bb
+        if self.pkl_dir is not None:
+            assert pathlib.Path(self.pkl_dir).is_dir(), f"{self.pkl_dir} does not exists"
 
     def make_stage_plugins(self, plugins, stage_idx):
         """Make plugins for ResNet ``stage_idx`` th stage.
@@ -751,6 +769,14 @@ class ModResNetV2Quant(BaseModule):
             x = self.norm1(x)
             x = self.relu(x)
             x = self.fake_quantize(x, 8)
+
+            self.pkl_frame_counter += 1
+            if self.pkl_save_conv1:                
+                _x = x.cpu().numpy()
+                np.save(f"{self.pkl_dir}/conv1_{self.pkl_frame_counter}.npy", _x)
+            if self.pkl_load_conv1:                
+                _x = np.load(f"{self.pkl_dir}/conv1_{self.pkl_frame_counter}.npy")
+                x = torch.from_numpy(_x).to('cuda:0') # this assumes only 1 gpu is used for demo
         
         m = nn.AdaptiveAvgPool2d((height_image//4, width_image//4))
         x = m(x).contiguous()
@@ -761,6 +787,21 @@ class ModResNetV2Quant(BaseModule):
             x = res_layer(x)
             if i in self.out_indices:
                 outs.append(x)
+
+        if self.pkl_save_bb or self.pkl_load_bb:
+            loaded_out = []
+            for oidx, out in enumerate(outs):
+                if self.pkl_save_bb:
+                    _out = out.cpu().numpy()
+                    np.save(f"{self.pkl_dir}/bb_{oidx}_{self.pkl_frame_counter}.npy", _out)
+                if self.pkl_load_bb:
+                    _out = np.load(f"{self.pkl_dir}/bb_{oidx}_{self.pkl_frame_counter}.npy")
+                    _out = torch.from_numpy(_out).to('cuda:0') # assumes only 1 gpu used for demo
+                    loaded_out.append(_out)
+
+            if self.pkl_load_bb:
+                return loaded_out
+
         return tuple(outs)
 
     def _freeze_stages(self):
